@@ -22,7 +22,7 @@ from scipy import signal
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
-from dao.device_config import DeviceConfig
+from dao.sensor_config import SensorConfig
 from dao.device_info import DeviceInfo, DeviceStatus, add_device, get_all_devices, get_device_by_mac, update_device_status, delete_device, update_device_info, validate_mac_address
 
 app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None)

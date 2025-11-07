@@ -4,14 +4,14 @@
 from datetime import datetime
 from sqlalchemy import Column, Integer, String, Float, Text, DateTime
 from sqlalchemy.orm import declarative_base
-from config import DEVICE_CONFIG_DB
+from config import SENSOR_CONFIG_DB
 from dao.database import create_db_engine, get_session
 
 Base = declarative_base()
 
-class DeviceConfig(Base):
+class SensorConfig(Base):
     """设备配置表"""
-    __tablename__ = 'device_config'
+    __tablename__ = 'sensor_config'
     
     id = Column(Integer, primary_key=True, autoincrement=True)
     device_mac = Column(String(17), unique=True, nullable=False)
@@ -36,7 +36,7 @@ class DeviceConfig(Base):
         }
 
 # 创建设备配置数据库引擎和表
-engine_config = create_db_engine(DEVICE_CONFIG_DB)
+engine_config = create_db_engine(SENSOR_CONFIG_DB)
 Base.metadata.create_all(engine_config)
 
 def add_device_config(device_mac, report_interval=60, alarm_threshold_min=None, 
@@ -44,7 +44,7 @@ def add_device_config(device_mac, report_interval=60, alarm_threshold_min=None,
     """添加设备配置"""
     session = get_session(engine_config)
     try:
-        new_config = DeviceConfig(
+        new_config = SensorConfig(
             device_mac=device_mac,
             report_interval=report_interval,
             alarm_threshold_min=alarm_threshold_min,
@@ -65,7 +65,7 @@ def get_device_config(device_mac):
     """获取设备配置"""
     session = get_session(engine_config)
     try:
-        config = session.query(DeviceConfig).filter(DeviceConfig.device_mac == device_mac).first()
+        config = session.query(SensorConfig).filter(SensorConfig.device_mac == device_mac).first()
         return config.to_dict() if config else None
     finally:
         session.close()
@@ -74,7 +74,7 @@ def update_device_config(device_mac, **kwargs):
     """更新设备配置"""
     session = get_session(engine_config)
     try:
-        config = session.query(DeviceConfig).filter(DeviceConfig.device_mac == device_mac).first()
+        config = session.query(SensorConfig).filter(SensorConfig.device_mac == device_mac).first()
         if config:
             for key, value in kwargs.items():
                 if hasattr(config, key):
