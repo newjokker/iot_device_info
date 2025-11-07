@@ -6,7 +6,6 @@
 import time
 import redis
 import json
-import config
 import requests
 import traceback
 import copy
@@ -18,7 +17,8 @@ import datetime
 import numpy as np
 from scipy import signal
 
-
+from dao.device_config import DeviceConfig
+from dao.device_info import DeviceInfo
 
 app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None)
 # app.include_router(vis_router)
