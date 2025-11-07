@@ -45,6 +45,43 @@ class DeviceInfo(Base):
             'created_at': self.created_at.isoformat(),
             'updated_at': self.updated_at.isoformat()
         }
+        
+    def print_info(self):
+        """美观地打印设备信息"""
+        info = self.to_dict()
+        
+        # 定义中文字段名映射
+        field_names = {
+            'id': '设备ID',
+            'mac_address': 'MAC地址',
+            'device_name': '设备名称',
+            'device_type': '设备类型',
+            'location': '安装位置',
+            'description': '设备描述',
+            'install_date': '安装日期',
+            'status': '设备状态',
+            'created_at': '创建时间',
+            'updated_at': '更新时间'
+        }
+        
+        # 计算最长的字段名长度用于对齐
+        max_field_length = max(len(name) for name in field_names.values())
+        
+        print("=" * 50)
+        print("设备详细信息")
+        print("=" * 50)
+        
+        for key, value in info.items():
+            chinese_name = field_names.get(key, key)
+            # 对齐字段名，并在冒号后添加空格
+            field_display = f"{chinese_name}:".ljust(max_field_length + 2)
+            
+            # 处理可能为None的值
+            display_value = value if value is not None else "未设置"
+            
+            print(f"{field_display} {display_value}")
+        
+        print("=" * 50)
 
 # 创建设备信息数据库引擎和表
 engine_device = create_db_engine(DEVICE_INFO_DB)
@@ -218,11 +255,13 @@ def get_all_devices():
     finally:
         session.close()
 
-def get_device_by_mac(mac_address):
+def get_device_by_mac(mac_address, print=False):
     """根据MAC地址获取设备"""
     session = get_session(engine_device)
     try:
         device = session.query(DeviceInfo).filter(DeviceInfo.mac_address == mac_address).first()
+        if print:
+            device.print_info()
         return device.to_dict() if device else None
     finally:
         session.close()
@@ -243,4 +282,56 @@ def update_device_status(mac_address, status):
     finally:
         session.close()
         
+def delete_device(mac_address):
+    """根据设备的MAC地址删除设备"""
+    session = get_session(engine_device)
+    try:
+        # 查找设备
+        device = session.query(DeviceInfo).filter(DeviceInfo.mac_address == mac_address).first()
         
+        if not device:
+            raise ValueError(f"设备 {mac_address} 不存在")
+        
+        # 删除设备
+        session.delete(device)
+        session.commit()
+        print(f"设备 {mac_address} 删除成功")
+        return True
+    except Exception as e:
+        session.rollback()
+        raise e
+    finally:
+        session.close()
+  
+def update_device_info(mac_address, device_name=None, device_type=None, location=None, description=None, status=None):
+    """修改设备信息（只能修改除了ID和MAC地址的字段）"""
+    session = get_session(engine_device)
+    try:
+        # 查找设备
+        device = session.query(DeviceInfo).filter(DeviceInfo.mac_address == mac_address).first()
+        
+        if not device:
+            raise ValueError(f"设备 {mac_address} 不存在")
+        
+        # 只能修改非ID和非MAC地址的字段
+        if device_name:
+            device.device_name = device_name.strip()
+            if _is_device_name_exists(device_name):
+                raise ValueError(f"设备名称 '{device_name}' 已存在")
+        if device_type:
+            device.device_type = device_type.strip()
+        if location:
+            device.location = location.strip()
+        if description:
+            device.description = description.strip()
+        if status:
+            device.status = status
+        
+        session.commit()
+        print(f"设备 {mac_address} 信息更新成功")
+        return device.to_dict()  # 返回更新后的设备信息
+    except Exception as e:
+        session.rollback()
+        raise e
+    finally:
+        session.close()
