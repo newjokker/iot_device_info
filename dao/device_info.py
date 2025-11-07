@@ -224,7 +224,7 @@ def add_device(mac_address, device_name, device_type, location=None, description
     
     # 标准化MAC地址
     if not validate_mac_address(mac_address):
-        raise ValueError("MAC地址格式不正确")
+        return False, "MAC地址格式不正确" 
         
     # 参数验证
     if not device_name or len(device_name.strip()) == 0:

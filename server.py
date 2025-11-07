@@ -10,6 +10,7 @@ import requests
 import traceback
 import copy
 import os
+import re
 from fastapi import FastAPI, Request, HTTPException, status, Query, Path
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
@@ -18,7 +19,9 @@ from typing import List, Optional, Dict, Any
 from pydantic import BaseModel, Field, validator
 import numpy as np
 from scipy import signal
-
+from fastapi import FastAPI, Request
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import JSONResponse
 from dao.device_config import DeviceConfig
 from dao.device_info import DeviceInfo, DeviceStatus, add_device, get_all_devices, get_device_by_mac, update_device_status, delete_device, update_device_info, validate_mac_address
 
@@ -29,33 +32,62 @@ app.mount("/static", StaticFiles(directory="./templates"), name="static")
 
 # Pydantic 模型定义
 class DeviceCreateRequest(BaseModel):
-    """创建设备请求模型"""
-    mac_address: str = Field(..., description="设备MAC地址，格式如：AA:BB:CC:DD:EE:FF")
-    device_name: str = Field(..., description="设备名称", max_length=50)
-    device_type: str = Field(..., description="设备类型", max_length=20)
-    location: Optional[str] = Field(None, description="安装位置", max_length=100)
+    """设备创建请求模型"""
+    mac_address: str = Field(..., description="MAC地址")
+    device_name: str = Field(..., description="设备名称")
+    device_type: str = Field(..., description="设备类型")
+    location: Optional[str] = Field(None, description="安装位置")
     description: Optional[str] = Field(None, description="设备描述")
     install_date: Optional[datetime.datetime] = Field(None, description="安装日期")
-    status: DeviceStatus = Field(DeviceStatus.ACTIVE, description="设备状态")
+    status: str = Field(..., description="设备状态")
 
     @validator('mac_address')
     def validate_mac_address(cls, v):
-        normalized_mac = validate_mac_address(v)
-        if not normalized_mac:
-            raise ValueError('MAC地址格式不正确')
-        return normalized_mac
+        """验证MAC地址格式"""
+        if not re.match(r'^([0-9A-Fa-f]{2}[:-]){5}([0-9A-Fa-f]{2})$', v):
+            raise ValueError('MAC地址格式不正确，应为 00:1A:2B:3C:4D:5E 格式')
+        return v.upper()
 
-    @validator('device_name')
-    def validate_device_name(cls, v):
-        if not v or len(v.strip()) == 0:
-            raise ValueError('设备名称不能为空')
-        return v.strip()
+    @validator('status')
+    def validate_status(cls, v):
+        """验证状态值"""
+        valid_statuses = ['active', 'inactive', 'maintenance']
+        if v not in valid_statuses:
+            raise ValueError(f'状态必须是以下值之一: {", ".join(valid_statuses)}')
+        return v
 
-    @validator('device_type')
-    def validate_device_type(cls, v):
-        if not v or len(v.strip()) == 0:
-            raise ValueError('设备类型不能为空')
-        return v.strip()
+
+
+# 添加全局异常处理来捕获验证错误
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    """处理数据验证错误，返回详细错误信息"""
+    error_details = []
+    for error in exc.errors():
+        error_details.append({
+            "loc": error["loc"],
+            "msg": error["msg"],
+            "type": error["type"]
+        })
+    
+    print("=== 422验证错误详情 ===")
+    print(f"错误数量: {len(exc.errors())}")
+    for i, error in enumerate(exc.errors()):
+        print(f"错误 {i+1}:")
+        print(f"  位置: {error['loc']}")
+        print(f"  类型: {error['type']}")
+        print(f"  信息: {error['msg']}")
+    print("=====================")
+    
+    return JSONResponse(
+        status_code=422,
+        content={
+            "status": "failed", 
+            "error_info": "数据验证失败",
+            "validation_errors": error_details
+        }
+    )
+
 
 class DeviceUpdateRequest(BaseModel):
     """更新设备请求模型"""
@@ -178,13 +210,10 @@ async def get_device(mac_address: str = Path(..., description="设备MAC地址")
             )
         
         return device
-    except HTTPException:
-        raise
     except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"获取设备信息失败: {str(e)}"
-        )
+        error_info = traceback.format_exc()
+        print(error_info)        
+        return {"status": "failed", "error_info": f"{error_info}"}
 
 @app.post("/api/devices")
 async def create_device(device_data: DeviceCreateRequest):
@@ -396,10 +425,10 @@ async def get_device_status_count():
         
         return status_count
     except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"获取设备状态统计失败: {str(e)}"
-        )
+        error_info = traceback.format_exc()
+        print("*"*100)
+        print(error_info)        
+        return {"status": "failed", "error_info": f"{error_info}"}
 
 # 全局异常处理
 @app.exception_handler(HTTPException)
