@@ -1,0 +1,40 @@
+# python:
+*idea*
+*.jpg
+*.png
+*.pdf
+*.mp4
+*.wav
+*.mp3
+*.npy
+*.h5
+*.pt
+*.pyc
+*.log
+*.log.*
+*pycache*
+*shishi*
+/data/
+/draw/
+/__pycache__/
+*/resource_library/*
+*.py[cod]
+*.db
+*.csv
+
+*.docx
+
+*.trend
+
+# git rm --cached config.ini
+# git rm -r --cached ./test/inter_face_tongli
+
+*del_*.py
+
+/test/inter_face_tongli/*.py
+
+del*.py
+
+.env
+.env.local
+.env.example
