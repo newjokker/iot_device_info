@@ -424,3 +424,18 @@ async def general_exception_handler(request: Request, exc: Exception):
         content=ErrorResponse(error="服务器内部错误", details=str(exc)).dict()
     )
 
+@app.get("/menu")
+async def menu():
+    html_path = "./templates/device_info.html"
+    
+    if os.path.exists(html_path):
+        return FileResponse(html_path)
+    else:
+        raise HTTPException(
+            status_code=404,
+            detail={
+                "error": "UI_FILE_NOT_FOUND",
+                "message": f"模板文件 {html_path} 不存在",
+                "solution": "请检查服务器是否部署了前端资源"
+            }
+        )

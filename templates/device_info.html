@@ -1,0 +1,831 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>设备管理系统</title>
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --primary-color: #3498db;
+            --success-color: #2ecc71;
+            --warning-color: #f39c12;
+            --danger-color: #e74c3c;
+            --light-bg: #f8f9fa;
+        }
+        
+        body {
+            background-color: #f5f7fa;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        .navbar-brand {
+            font-weight: 600;
+        }
+        
+        .card {
+            border: none;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
+        }
+        
+        .card-header {
+            background-color: white;
+            border-bottom: 1px solid #eaeaea;
+            font-weight: 600;
+            padding: 15px 20px;
+        }
+        
+        .status-badge {
+            padding: 5px 10px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 500;
+        }
+        
+        .status-active {
+            background-color: rgba(46, 204, 113, 0.2);
+            color: #27ae60;
+        }
+        
+        .status-inactive {
+            background-color: rgba(241, 196, 15, 0.2);
+            color: #f39c12;
+        }
+        
+        .status-maintenance {
+            background-color: rgba(52, 152, 219, 0.2);
+            color: #2980b9;
+        }
+        
+        .device-card {
+            transition: transform 0.2s;
+        }
+        
+        .device-card:hover {
+            transform: translateY(-5px);
+        }
+        
+        .action-btn {
+            margin-right: 5px;
+        }
+        
+        .stats-card {
+            text-align: center;
+            padding: 15px;
+        }
+        
+        .stats-number {
+            font-size: 2rem;
+            font-weight: 700;
+            margin: 10px 0;
+        }
+        
+        .stats-label {
+            font-size: 0.9rem;
+            color: #6c757d;
+        }
+        
+        .table-responsive {
+            border-radius: 10px;
+            overflow: hidden;
+        }
+        
+        .search-box {
+            position: relative;
+        }
+        
+        .search-box i {
+            position: absolute;
+            left: 15px;
+            top: 12px;
+            color: #6c757d;
+        }
+        
+        .search-box input {
+            padding-left: 40px;
+        }
+        
+        .btn-primary {
+            background-color: var(--primary-color);
+            border-color: var(--primary-color);
+        }
+        
+        .modal-header {
+            background-color: var(--light-bg);
+        }
+        
+        .form-label {
+            font-weight: 500;
+        }
+        
+        #loadingSpinner {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <!-- 导航栏 -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+        <div class="container">
+            <a class="navbar-brand" href="#">
+                <i class="fas fa-microchip me-2"></i>设备管理系统
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav ms-auto">
+                    <li class="nav-item">
+                        <a class="nav-link active" href="#"><i class="fas fa-tachometer-alt me-1"></i> 设备管理</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#"><i class="fas fa-chart-bar me-1"></i> 数据统计</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#"><i class="fas fa-cog me-1"></i> 系统设置</a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container mt-4">
+        <!-- 统计卡片 -->
+        <div class="row mb-4">
+            <div class="col-md-3">
+                <div class="card stats-card">
+                    <div class="card-body">
+                        <i class="fas fa-server fa-2x text-primary"></i>
+                        <div class="stats-number" id="totalDevices">0</div>
+                        <div class="stats-label">总设备数</div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card stats-card">
+                    <div class="card-body">
+                        <i class="fas fa-play-circle fa-2x text-success"></i>
+                        <div class="stats-number" id="activeDevices">0</div>
+                        <div class="stats-label">运行中</div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card stats-card">
+                    <div class="card-body">
+                        <i class="fas fa-pause-circle fa-2x text-warning"></i>
+                        <div class="stats-number" id="inactiveDevices">0</div>
+                        <div class="stats-label">已停用</div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card stats-card">
+                    <div class="card-body">
+                        <i class="fas fa-tools fa-2x text-info"></i>
+                        <div class="stats-number" id="maintenanceDevices">0</div>
+                        <div class="stats-label">维护中</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 操作栏 -->
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <span>设备列表</span>
+                <div>
+                    <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#addDeviceModal">
+                        <i class="fas fa-plus me-1"></i> 添加设备
+                    </button>
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <div class="search-box">
+                            <i class="fas fa-search"></i>
+                            <input type="text" class="form-control" id="searchInput" placeholder="搜索设备名称、MAC地址或类型...">
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <select class="form-select" id="statusFilter">
+                            <option value="">全部状态</option>
+                            <option value="active">运行中</option>
+                            <option value="inactive">已停用</option>
+                            <option value="maintenance">维护中</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <select class="form-select" id="typeFilter">
+                            <option value="">全部类型</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="d-flex justify-content-center">
+                    <div id="loadingSpinner" class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">加载中...</span>
+                    </div>
+                </div>
+                
+                <div class="table-responsive">
+                    <table class="table table-hover" id="devicesTable">
+                        <thead class="table-light">
+                            <tr>
+                                <th>设备名称</th>
+                                <th>MAC地址</th>
+                                <th>设备类型</th>
+                                <th>安装位置</th>
+                                <th>状态</th>
+                                <th>安装日期</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody id="devicesTableBody">
+                            <!-- 设备数据将通过JavaScript动态加载 -->
+                        </tbody>
+                    </table>
+                </div>
+                
+                <div class="d-flex justify-content-between align-items-center mt-3">
+                    <div class="text-muted" id="tableInfo">显示 0 条设备记录</div>
+                    <nav>
+                        <ul class="pagination pagination-sm" id="pagination">
+                            <!-- 分页将通过JavaScript动态生成 -->
+                        </ul>
+                    </nav>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 添加设备模态框 -->
+    <div class="modal fade" id="addDeviceModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">添加新设备</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="addDeviceForm">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="macAddress" class="form-label">MAC地址 <span class="text-danger">*</span></label>
+                                    <input type="text" class="form-control" id="macAddress" required>
+                                    <div class="form-text">格式: AA:BB:CC:DD:EE:FF 或 AA-BB-CC-DD-EE-FF</div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="deviceName" class="form-label">设备名称 <span class="text-danger">*</span></label>
+                                    <input type="text" class="form-control" id="deviceName" required maxlength="50">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="deviceType" class="form-label">设备类型 <span class="text-danger">*</span></label>
+                                    <input type="text" class="form-control" id="deviceType" required maxlength="20">
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="deviceStatus" class="form-label">设备状态</label>
+                                    <select class="form-select" id="deviceStatus">
+                                        <option value="active">运行中</option>
+                                        <option value="inactive">已停用</option>
+                                        <option value="maintenance">维护中</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="location" class="form-label">安装位置</label>
+                            <input type="text" class="form-control" id="location" maxlength="100">
+                        </div>
+                        <div class="mb-3">
+                            <label for="description" class="form-label">设备描述</label>
+                            <textarea class="form-control" id="description" rows="3"></textarea>
+                        </div>
+                        <div class="mb-3">
+                            <label for="installDate" class="form-label">安装日期</label>
+                            <input type="date" class="form-control" id="installDate">
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="button" class="btn btn-primary" id="saveDeviceBtn">保存设备</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 编辑设备模态框 -->
+    <div class="modal fade" id="editDeviceModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">编辑设备信息</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="editDeviceForm">
+                        <input type="hidden" id="editMacAddress">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">MAC地址</label>
+                                    <input type="text" class="form-control" id="editMacAddressDisplay" disabled>
+                                    <div class="form-text">MAC地址不可修改</div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="editDeviceName" class="form-label">设备名称 <span class="text-danger">*</span></label>
+                                    <input type="text" class="form-control" id="editDeviceName" required maxlength="50">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="editDeviceType" class="form-label">设备类型 <span class="text-danger">*</span></label>
+                                    <input type="text" class="form-control" id="editDeviceType" required maxlength="20">
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="editDeviceStatus" class="form-label">设备状态</label>
+                                    <select class="form-select" id="editDeviceStatus">
+                                        <option value="active">运行中</option>
+                                        <option value="inactive">已停用</option>
+                                        <option value="maintenance">维护中</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="editLocation" class="form-label">安装位置</label>
+                            <input type="text" class="form-control" id="editLocation" maxlength="100">
+                        </div>
+                        <div class="mb-3">
+                            <label for="editDescription" class="form-label">设备描述</label>
+                            <textarea class="form-control" id="editDescription" rows="3"></textarea>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="button" class="btn btn-primary" id="updateDeviceBtn">更新设备</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 消息提示 -->
+    <div class="toast-container position-fixed top-0 end-0 p-3">
+        <div id="messageToast" class="toast" role="alert">
+            <div class="toast-header">
+                <i class="fas fa-info-circle me-2" id="toastIcon"></i>
+                <strong class="me-auto" id="toastTitle">系统提示</strong>
+                <button type="button" class="btn-close" data-bs-dismiss="toast"></button>
+            </div>
+            <div class="toast-body" id="toastMessage">
+                操作成功！
+            </div>
+        </div>
+    </div>
+
+    <!-- Bootstrap & jQuery -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <script>
+        // API基础URL - 根据实际部署修改
+        const API_BASE_URL = '/api';
+        
+        // 全局变量
+        let allDevices = [];
+        let currentPage = 1;
+        const itemsPerPage = 10;
+        let filteredDevices = [];
+        
+        // 页面加载完成后初始化
+        $(document).ready(function() {
+            loadDevices();
+            loadDeviceTypes();
+            loadDeviceStats();
+            
+            // 绑定事件
+            $('#searchInput').on('input', filterDevices);
+            $('#statusFilter, #typeFilter').on('change', filterDevices);
+            $('#saveDeviceBtn').on('click', addDevice);
+            $('#updateDeviceBtn').on('click', updateDevice);
+            
+            // 设置安装日期默认为今天
+            $('#installDate').val(new Date().toISOString().split('T')[0]);
+        });
+        
+        // 加载设备列表
+        function loadDevices() {
+            showLoading(true);
+            
+            $.ajax({
+                url: `${API_BASE_URL}/devices`,
+                method: 'GET',
+                success: function(devices) {
+                    allDevices = devices;
+                    filteredDevices = [...allDevices];
+                    displayDevices();
+                    updateTableInfo();
+                    showLoading(false);
+                },
+                error: function(xhr, status, error) {
+                    showMessage('错误', '加载设备列表失败: ' + error, 'error');
+                    showLoading(false);
+                }
+            });
+        }
+        
+        // 加载设备类型
+        function loadDeviceTypes() {
+            $.ajax({
+                url: `${API_BASE_URL}/device-types`,
+                method: 'GET',
+                success: function(data) {
+                    const typeFilter = $('#typeFilter');
+                    typeFilter.empty().append('<option value="">全部类型</option>');
+                    
+                    data.device_types.forEach(type => {
+                        typeFilter.append(`<option value="${type}">${type}</option>`);
+                    });
+                },
+                error: function(xhr, status, error) {
+                    console.error('加载设备类型失败:', error);
+                }
+            });
+        }
+        
+        // 加载设备统计
+        function loadDeviceStats() {
+            $.ajax({
+                url: `${API_BASE_URL}/device-status`,
+                method: 'GET',
+                success: function(stats) {
+                    $('#totalDevices').text(stats.total);
+                    $('#activeDevices').text(stats.active);
+                    $('#inactiveDevices').text(stats.inactive);
+                    $('#maintenanceDevices').text(stats.maintenance);
+                },
+                error: function(xhr, status, error) {
+                    console.error('加载设备统计失败:', error);
+                }
+            });
+        }
+        
+        // 显示设备列表
+        function displayDevices() {
+            const tbody = $('#devicesTableBody');
+            tbody.empty();
+            
+            if (filteredDevices.length === 0) {
+                tbody.append(`
+                    <tr>
+                        <td colspan="7" class="text-center py-4 text-muted">
+                            <i class="fas fa-inbox fa-2x mb-2 d-block"></i>
+                            暂无设备数据
+                        </td>
+                    </tr>
+                `);
+                return;
+            }
+            
+            // 计算分页
+            const startIndex = (currentPage - 1) * itemsPerPage;
+            const endIndex = Math.min(startIndex + itemsPerPage, filteredDevices.length);
+            const pageDevices = filteredDevices.slice(startIndex, endIndex);
+            
+            pageDevices.forEach(device => {
+                const statusClass = `status-${device.status}`;
+                const statusText = getStatusText(device.status);
+                const installDate = device.install_date ? new Date(device.install_date).toLocaleDateString() : '未设置';
+                
+                tbody.append(`
+                    <tr>
+                        <td>
+                            <div class="fw-bold">${device.device_name}</div>
+                            ${device.description ? `<small class="text-muted">${device.description}</small>` : ''}
+                        </td>
+                        <td><code>${device.mac_address}</code></td>
+                        <td>${device.device_type}</td>
+                        <td>${device.location || '未设置'}</td>
+                        <td><span class="status-badge ${statusClass}">${statusText}</span></td>
+                        <td>${installDate}</td>
+                        <td>
+                            <button class="btn btn-sm btn-outline-primary action-btn edit-btn" data-mac="${device.mac_address}">
+                                <i class="fas fa-edit"></i>
+                            </button>
+                            <button class="btn btn-sm btn-outline-danger action-btn delete-btn" data-mac="${device.mac_address}">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </td>
+                    </tr>
+                `);
+            });
+            
+            // 绑定操作按钮事件
+            $('.edit-btn').on('click', function() {
+                const macAddress = $(this).data('mac');
+                editDevice(macAddress);
+            });
+            
+            $('.delete-btn').on('click', function() {
+                const macAddress = $(this).data('mac');
+                deleteDevice(macAddress);
+            });
+            
+            // 生成分页
+            generatePagination();
+        }
+        
+        // 生成分页控件
+        function generatePagination() {
+            const totalPages = Math.ceil(filteredDevices.length / itemsPerPage);
+            const pagination = $('#pagination');
+            pagination.empty();
+            
+            if (totalPages <= 1) return;
+            
+            // 上一页
+            const prevDisabled = currentPage === 1 ? 'disabled' : '';
+            pagination.append(`
+                <li class="page-item ${prevDisabled}">
+                    <a class="page-link" href="#" data-page="${currentPage - 1}">上一页</a>
+                </li>
+            `);
+            
+            // 页码
+            for (let i = 1; i <= totalPages; i++) {
+                const active = i === currentPage ? 'active' : '';
+                pagination.append(`
+                    <li class="page-item ${active}">
+                        <a class="page-link" href="#" data-page="${i}">${i}</a>
+                    </li>
+                `);
+            }
+            
+            // 下一页
+            const nextDisabled = currentPage === totalPages ? 'disabled' : '';
+            pagination.append(`
+                <li class="page-item ${nextDisabled}">
+                    <a class="page-link" href="#" data-page="${currentPage + 1}">下一页</a>
+                </li>
+            `);
+            
+            // 绑定分页点击事件
+            $('.page-link').on('click', function(e) {
+                e.preventDefault();
+                const page = parseInt($(this).data('page'));
+                if (page && page !== currentPage) {
+                    currentPage = page;
+                    displayDevices();
+                }
+            });
+        }
+        
+        // 过滤设备
+        function filterDevices() {
+            const searchText = $('#searchInput').val().toLowerCase();
+            const statusFilter = $('#statusFilter').val();
+            const typeFilter = $('#typeFilter').val();
+            
+            filteredDevices = allDevices.filter(device => {
+                const matchesSearch = 
+                    device.device_name.toLowerCase().includes(searchText) ||
+                    device.mac_address.toLowerCase().includes(searchText) ||
+                    device.device_type.toLowerCase().includes(searchText) ||
+                    (device.location && device.location.toLowerCase().includes(searchText));
+                
+                const matchesStatus = !statusFilter || device.status === statusFilter;
+                const matchesType = !typeFilter || device.device_type === typeFilter;
+                
+                return matchesSearch && matchesStatus && matchesType;
+            });
+            
+            currentPage = 1;
+            displayDevices();
+            updateTableInfo();
+        }
+        
+        // 更新表格信息
+        function updateTableInfo() {
+            const total = filteredDevices.length;
+            const start = total === 0 ? 0 : (currentPage - 1) * itemsPerPage + 1;
+            const end = Math.min(currentPage * itemsPerPage, total);
+            
+            $('#tableInfo').text(`显示 ${start}-${end} 条，共 ${total} 条设备记录`);
+        }
+        
+        // 添加设备
+        function addDevice() {
+            const formData = {
+                mac_address: $('#macAddress').val(),
+                device_name: $('#deviceName').val(),
+                device_type: $('#deviceType').val(),
+                location: $('#location').val() || null,
+                description: $('#description').val() || null,
+                install_date: $('#installDate').val() || null,
+                status: $('#deviceStatus').val()
+            };
+            
+            // 简单前端验证
+            if (!formData.mac_address || !formData.device_name || !formData.device_type) {
+                showMessage('错误', '请填写必填字段', 'error');
+                return;
+            }
+            
+            $('#saveDeviceBtn').prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i> 保存中...');
+            
+            $.ajax({
+                url: `${API_BASE_URL}/devices`,
+                method: 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify(formData),
+                success: function(device) {
+                    $('#addDeviceModal').modal('hide');
+                    $('#addDeviceForm')[0].reset();
+                    showMessage('成功', '设备添加成功', 'success');
+                    loadDevices();
+                    loadDeviceStats();
+                    loadDeviceTypes();
+                },
+                error: function(xhr, status, error) {
+                    let errorMsg = '添加设备失败';
+                    if (xhr.responseJSON && xhr.responseJSON.detail) {
+                        errorMsg = xhr.responseJSON.detail;
+                    }
+                    showMessage('错误', errorMsg, 'error');
+                },
+                complete: function() {
+                    $('#saveDeviceBtn').prop('disabled', false).html('保存设备');
+                }
+            });
+        }
+        
+        // 编辑设备
+        function editDevice(macAddress) {
+            $.ajax({
+                url: `${API_BASE_URL}/devices/${macAddress}`,
+                method: 'GET',
+                success: function(device) {
+                    $('#editMacAddress').val(device.mac_address);
+                    $('#editMacAddressDisplay').val(device.mac_address);
+                    $('#editDeviceName').val(device.device_name);
+                    $('#editDeviceType').val(device.device_type);
+                    $('#editLocation').val(device.location || '');
+                    $('#editDescription').val(device.description || '');
+                    $('#editDeviceStatus').val(device.status);
+                    $('#editDeviceModal').modal('show');
+                },
+                error: function(xhr, status, error) {
+                    showMessage('错误', '获取设备信息失败', 'error');
+                }
+            });
+        }
+        
+        // 更新设备
+        function updateDevice() {
+            const macAddress = $('#editMacAddress').val();
+            const formData = {
+                device_name: $('#editDeviceName').val(),
+                device_type: $('#editDeviceType').val(),
+                location: $('#editLocation').val() || null,
+                description: $('#editDescription').val() || null,
+                status: $('#editDeviceStatus').val()
+            };
+            
+            // 简单前端验证
+            if (!formData.device_name || !formData.device_type) {
+                showMessage('错误', '请填写必填字段', 'error');
+                return;
+            }
+            
+            $('#updateDeviceBtn').prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i> 更新中...');
+            
+            $.ajax({
+                url: `${API_BASE_URL}/devices/${macAddress}`,
+                method: 'PUT',
+                contentType: 'application/json',
+                data: JSON.stringify(formData),
+                success: function(device) {
+                    $('#editDeviceModal').modal('hide');
+                    showMessage('成功', '设备更新成功', 'success');
+                    loadDevices();
+                    loadDeviceStats();
+                },
+                error: function(xhr, status, error) {
+                    let errorMsg = '更新设备失败';
+                    if (xhr.responseJSON && xhr.responseJSON.detail) {
+                        errorMsg = xhr.responseJSON.detail;
+                    }
+                    showMessage('错误', errorMsg, 'error');
+                },
+                complete: function() {
+                    $('#updateDeviceBtn').prop('disabled', false).html('更新设备');
+                }
+            });
+        }
+        
+        // 删除设备
+        function deleteDevice(macAddress) {
+            if (!confirm(`确定要删除设备 ${macAddress} 吗？此操作不可撤销。`)) {
+                return;
+            }
+            
+            $.ajax({
+                url: `${API_BASE_URL}/devices/${macAddress}`,
+                method: 'DELETE',
+                success: function() {
+                    showMessage('成功', '设备删除成功', 'success');
+                    loadDevices();
+                    loadDeviceStats();
+                    loadDeviceTypes();
+                },
+                error: function(xhr, status, error) {
+                    let errorMsg = '删除设备失败';
+                    if (xhr.responseJSON && xhr.responseJSON.detail) {
+                        errorMsg = xhr.responseJSON.detail;
+                    }
+                    showMessage('错误', errorMsg, 'error');
+                }
+            });
+        }
+        
+        // 显示/隐藏加载动画
+        function showLoading(show) {
+            if (show) {
+                $('#loadingSpinner').show();
+                $('#devicesTable').hide();
+            } else {
+                $('#loadingSpinner').hide();
+                $('#devicesTable').show();
+            }
+        }
+        
+        // 显示消息提示
+        function showMessage(title, message, type) {
+            const toast = $('#messageToast');
+            const toastIcon = $('#toastIcon');
+            const toastTitle = $('#toastTitle');
+            const toastMessage = $('#toastMessage');
+            
+            // 设置图标和颜色
+            let iconClass = 'fas fa-info-circle';
+            let bgClass = '';
+            
+            switch(type) {
+                case 'success':
+                    iconClass = 'fas fa-check-circle text-success';
+                    bgClass = 'bg-success';
+                    break;
+                case 'error':
+                    iconClass = 'fas fa-exclamation-circle text-danger';
+                    bgClass = 'bg-danger';
+                    break;
+                case 'warning':
+                    iconClass = 'fas fa-exclamation-triangle text-warning';
+                    bgClass = 'bg-warning';
+                    break;
+            }
+            
+            toastIcon.attr('class', iconClass + ' me-2');
+            toastTitle.text(title);
+            toastMessage.text(message);
+            
+            // 显示Toast
+            const bsToast = new bootstrap.Toast(toast[0]);
+            bsToast.show();
+        }
+        
+        // 获取状态文本
+        function getStatusText(status) {
+            switch(status) {
+                case 'active': return '运行中';
+                case 'inactive': return '已停用';
+                case 'maintenance': return '维护中';
+                default: return status;
+            }
+        }
+    </script>
+</body>
+</html>
