@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
+import re
 import enum
 from datetime import datetime
 from sqlalchemy import Column, Integer, String, Text, DateTime, Enum
@@ -49,27 +50,164 @@ class DeviceInfo(Base):
 engine_device = create_db_engine(DEVICE_INFO_DB)
 Base.metadata.create_all(engine_device)
 
-def add_device(mac_address, device_name, device_type, location=None, description=None, install_date=None, status=DeviceStatus.ACTIVE):
-    """添加新设备"""
+def _add_device(mac_address, device_name, device_type, location=None, description=None, install_date=None, status=DeviceStatus.ACTIVE):
+    """添加新设备
+    
+    Args:
+        mac_address: 设备MAC地址，必须为17个字符且唯一
+        device_name: 设备名称，不能为空
+        device_type: 设备类型，不能为空
+        location: 安装位置，可选
+        description: 设备描述，可选
+        install_date: 安装日期，可选
+        status: 设备状态，默认为ACTIVE
+    
+    Returns:
+        DeviceInfo: 新建设备对象
+        
+    Raises:
+        ValueError: 参数验证失败
+        Exception: 数据库操作失败
+    """
+    # 参数验证
+    if not mac_address or len(mac_address) != 17:
+        raise ValueError("MAC地址必须为17个字符")
+    
+    if not device_name or len(device_name.strip()) == 0:
+        raise ValueError("设备名称不能为空")
+    
+    if not device_type or len(device_type.strip()) == 0:
+        raise ValueError("设备类型不能为空")
+    
+    # 验证MAC地址格式（简单验证）
+    if not all(c in '0123456789ABCDEFabcdef:' for c in mac_address):
+        raise ValueError("MAC地址格式不正确，应包含0-9,A-F,a-f和冒号")
+    
     session = get_session(engine_device)
     try:
+        # 检查MAC地址是否已存在
+        existing_device = session.query(DeviceInfo).filter(
+            DeviceInfo.mac_address == mac_address
+        ).first()
+        
+        if existing_device:
+            raise ValueError(f"MAC地址 {mac_address} 已存在，设备名称为: {existing_device.device_name}")
+        
+        # 检查设备名称是否已存在（可选，根据业务需求）
+        existing_name = session.query(DeviceInfo).filter(
+            DeviceInfo.device_name == device_name
+        ).first()
+        
+        if existing_name:
+            raise ValueError(f"设备名称 '{device_name}' 已存在，对应的MAC地址为: {existing_name.mac_address}")
+        
+        # 创建设备记录
         new_device = DeviceInfo(
-            mac_address=mac_address,
-            device_name=device_name,
-            device_type=device_type,
-            location=location,
-            description=description,
+            mac_address=mac_address.upper(),  # 统一转为大写
+            device_name=device_name.strip(),
+            device_type=device_type.strip(),
+            location=location.strip() if location else None,
+            description=description.strip() if description else None,
             install_date=install_date,
             status=status
         )
+        
         session.add(new_device)
         session.commit()
         return new_device
+        
+    except ValueError:
+        # 重新抛出已知的业务逻辑错误
+        raise
     except Exception as e:
         session.rollback()
-        raise e
+        # 封装数据库错误信息
+        if "UNIQUE constraint failed" in str(e) or "Duplicate entry" in str(e):
+            raise ValueError(f"设备信息已存在，可能由于重复的MAC地址或设备名称: {mac_address}")
+        else:
+            raise Exception(f"数据库操作失败: {str(e)}")
     finally:
         session.close()
+
+def validate_mac_address(mac_address):
+    """
+    验证并规范化 MAC 地址格式
+    支持常见格式: AA:BB:CC:DD:EE:FF 或 AA-BB-CC-DD-EE-FF
+    返回值：
+        如果合法 -> 返回规范化后的 MAC（大写、冒号分隔）
+        如果非法 -> 返回 None
+    """
+    if not mac_address or not isinstance(mac_address, str):
+        return None
+
+    # 去除首尾空格
+    mac_address = mac_address.strip()
+
+    # 匹配格式: 允许 : 或 - 分隔
+    pattern = r'^([0-9A-Fa-f]{2}[:-]){5}([0-9A-Fa-f]{2})$'
+    if re.match(pattern, mac_address):
+        # 统一成冒号分隔 + 大写形式
+        normalized = mac_address.replace('-', ':').upper()
+        return normalized
+
+    # 尝试匹配无分隔符形式，例如 AABBCCDDEEFF
+    pattern_no_sep = r'^[0-9A-Fa-f]{12}$'
+    if re.match(pattern_no_sep, mac_address):
+        normalized = ':'.join(mac_address[i:i+2] for i in range(0, 12, 2)).upper()
+        return normalized
+
+    return None
+
+def _is_device_name_exists(device_name, exclude_mac=None):
+    """检查设备名称是否已存在（排除指定MAC地址）"""
+    session = get_session(engine_device)
+    try:
+        query = session.query(DeviceInfo).filter(DeviceInfo.device_name == device_name)
+        if exclude_mac:
+            query = query.filter(DeviceInfo.mac_address != exclude_mac)
+        return query.first() is not None
+    finally:
+        session.close()
+
+def _is_mac_address_exists(mac_address, exclude_name=None):
+    """检查MAC地址是否已存在（排除指定设备名称）"""
+    session = get_session(engine_device)
+    try:
+        query = session.query(DeviceInfo).filter(DeviceInfo.mac_address == mac_address)
+        if exclude_name:
+            query = query.filter(DeviceInfo.device_name != exclude_name)
+        return query.first() is not None
+    finally:
+        session.close()
+
+def add_device(mac_address, device_name, device_type, location=None, description=None, install_date=None, status=DeviceStatus.ACTIVE):
+    """增强版的添加设备函数，包含更严格的验证"""
+    
+    # 标准化MAC地址
+    if not validate_mac_address(mac_address):
+        raise ValueError("MAC地址格式不正确")
+        
+    # 参数验证
+    if not device_name or len(device_name.strip()) == 0:
+        raise ValueError("设备名称不能为空")
+    
+    if len(device_name.strip()) > 50:
+        raise ValueError("设备名称长度不能超过50个字符")
+    
+    if not device_type or len(device_type.strip()) == 0:
+        raise ValueError("设备类型不能为空")
+    
+    if len(device_type.strip()) > 20:
+        raise ValueError("设备类型长度不能超过20个字符")
+    
+    # 检查唯一性
+    if _is_mac_address_exists(mac_address):
+        raise ValueError(f"MAC地址 {mac_address} 已存在")
+    
+    if _is_device_name_exists(device_name):
+        raise ValueError(f"设备名称 '{device_name}' 已存在")
+    
+    return _add_device(mac_address, device_name, device_type, location, description, install_date, status)
 
 def get_all_devices():
     """获取所有设备"""
@@ -104,3 +242,5 @@ def update_device_status(mac_address, status):
         raise e
     finally:
         session.close()
+        
+        
