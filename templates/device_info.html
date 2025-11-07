@@ -661,18 +661,23 @@
                 method: 'POST',
                 contentType: 'application/json',
                 data: JSON.stringify(formData),
-                success: function(device) {
-                    $('#addDeviceModal').modal('hide');
-                    $('#addDeviceForm')[0].reset();
-                    showMessage('成功', '设备添加成功', 'success');
-                    loadDevices();
-                    loadDeviceStats();
-                    loadDeviceTypes();
+                success: function(response) {
+                    // 检查响应状态
+                    if (response.status === 'success') {
+                        $('#addDeviceModal').modal('hide');
+                        $('#addDeviceForm')[0].reset();
+                        showMessage('成功', '设备添加成功', 'success');
+                        loadDevices();
+                        loadDeviceStats();
+                        loadDeviceTypes();
+                    } else {
+                        showMessage('错误', response.error_info || '添加设备失败', 'error');
+                    }
                 },
                 error: function(xhr, status, error) {
                     let errorMsg = '添加设备失败';
-                    if (xhr.responseJSON && xhr.responseJSON.detail) {
-                        errorMsg = xhr.responseJSON.detail;
+                    if (xhr.responseJSON && xhr.responseJSON.error_info) {
+                        errorMsg = xhr.responseJSON.error_info;
                     }
                     showMessage('错误', errorMsg, 'error');
                 },
@@ -681,7 +686,7 @@
                 }
             });
         }
-        
+                
         // 编辑设备
         function editDevice(macAddress) {
             $.ajax({

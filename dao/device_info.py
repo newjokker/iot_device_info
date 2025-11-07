@@ -3,6 +3,7 @@
 
 import re
 import enum
+import traceback
 from datetime import datetime
 from sqlalchemy import Column, Integer, String, Text, DateTime, Enum
 from sqlalchemy.orm import declarative_base
@@ -108,18 +109,18 @@ def _add_device(mac_address, device_name, device_type, location=None, descriptio
     """
     # 参数验证
     if not mac_address or len(mac_address) != 17:
-        raise ValueError("MAC地址必须为17个字符")
+        return False, "MAC地址必须为17个字符"
     
     if not device_name or len(device_name.strip()) == 0:
-        raise ValueError("设备名称不能为空")
-    
+        return False, "设备名称不能为空"
+
     if not device_type or len(device_type.strip()) == 0:
-        raise ValueError("设备类型不能为空")
-    
+        return False, "设备类型不能为空"
+
     # 验证MAC地址格式（简单验证）
     if not all(c in '0123456789ABCDEFabcdef:' for c in mac_address):
-        raise ValueError("MAC地址格式不正确，应包含0-9,A-F,a-f和冒号")
-    
+        return False, "MAC地址格式不正确，应包含0-9,A-F,a-f和冒号"
+
     session = get_session(engine_device)
     try:
         # 检查MAC地址是否已存在
@@ -128,15 +129,15 @@ def _add_device(mac_address, device_name, device_type, location=None, descriptio
         ).first()
         
         if existing_device:
-            raise ValueError(f"MAC地址 {mac_address} 已存在，设备名称为: {existing_device.device_name}")
-        
+            return False, f"MAC地址 {mac_address} 已存在，设备名称为: {existing_device.device_name}"
+
         # 检查设备名称是否已存在（可选，根据业务需求）
         existing_name = session.query(DeviceInfo).filter(
             DeviceInfo.device_name == device_name
         ).first()
         
         if existing_name:
-            raise ValueError(f"设备名称 '{device_name}' 已存在，对应的MAC地址为: {existing_name.mac_address}")
+            return False, f"设备名称 '{device_name}' 已存在，对应的MAC地址为: {existing_name.mac_address}"
         
         # 创建设备记录
         new_device = DeviceInfo(
@@ -151,18 +152,19 @@ def _add_device(mac_address, device_name, device_type, location=None, descriptio
         
         session.add(new_device)
         session.commit()
-        return new_device
+        return True, ""
         
     except ValueError:
         # 重新抛出已知的业务逻辑错误
-        raise
+        error_info = traceback.format_exc()
+        return False, str(error_info)
     except Exception as e:
         session.rollback()
         # 封装数据库错误信息
         if "UNIQUE constraint failed" in str(e) or "Duplicate entry" in str(e):
-            raise ValueError(f"设备信息已存在，可能由于重复的MAC地址或设备名称: {mac_address}")
+            return False, f"设备信息已存在，可能由于重复的MAC地址或设备名称: {mac_address}"
         else:
-            raise Exception(f"数据库操作失败: {str(e)}")
+            return False, f"数据库操作失败: {str(e)}"
     finally:
         session.close()
 
@@ -226,24 +228,24 @@ def add_device(mac_address, device_name, device_type, location=None, description
         
     # 参数验证
     if not device_name or len(device_name.strip()) == 0:
-        raise ValueError("设备名称不能为空")
+        return False, "设备名称不能为空" 
     
     if len(device_name.strip()) > 50:
-        raise ValueError("设备名称长度不能超过50个字符")
-    
+        return False, "设备名称长度不能超过50个字符"
+
     if not device_type or len(device_type.strip()) == 0:
-        raise ValueError("设备类型不能为空")
-    
+        return False, "设备类型不能为空"
+
     if len(device_type.strip()) > 20:
-        raise ValueError("设备类型长度不能超过20个字符")
-    
+        return False, "设备类型长度不能超过20个字符"
+
     # 检查唯一性
     if _is_mac_address_exists(mac_address):
-        raise ValueError(f"MAC地址 {mac_address} 已存在")
-    
+        return False, f"MAC地址 {mac_address} 已存在"
+
     if _is_device_name_exists(device_name):
-        raise ValueError(f"设备名称 '{device_name}' 已存在")
-    
+        return False, f"设备名称 '{device_name}' 已存在"
+
     return _add_device(mac_address, device_name, device_type, location, description, install_date, status)
 
 def get_all_devices():

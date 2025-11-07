@@ -186,15 +186,16 @@ async def get_device(mac_address: str = Path(..., description="设备MAC地址")
             detail=f"获取设备信息失败: {str(e)}"
         )
 
-@app.post("/api/devices", response_model=DeviceResponse)
+@app.post("/api/devices")
 async def create_device(device_data: DeviceCreateRequest):
     """
     创建设备
     - 需要提供完整的设备信息
     - MAC地址和设备名称必须唯一
     """
+        
     try:
-        new_device = add_device(
+        status, msg = add_device(
             mac_address=device_data.mac_address,
             device_name=device_data.device_name,
             device_type=device_data.device_type,
@@ -203,17 +204,18 @@ async def create_device(device_data: DeviceCreateRequest):
             install_date=device_data.install_date,
             status=device_data.status
         )
-        return new_device.to_dict()
-    except ValueError as e:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(e)
-        )
+        if status:
+            # return get_device_by_mac(device_data.mac_address)
+            return {"status": "success", "info": msg}
+        else:
+            return {"status": "failed", "error_info": msg}
+
     except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"创建设备失败: {str(e)}"
-        )
+        
+        error_info = traceback.format_exc()
+        print(error_info)
+        
+        return {"status": "failed", "error_info": f"{error_info}"}
 
 @app.put("/api/devices/{mac_address}", response_model=DeviceResponse)
 async def update_device(
