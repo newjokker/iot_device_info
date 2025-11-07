@@ -205,7 +205,6 @@ async def create_device(device_data: DeviceCreateRequest):
             status=device_data.status
         )
         if status:
-            # return get_device_by_mac(device_data.mac_address)
             return {"status": "success", "info": msg}
         else:
             return {"status": "failed", "error_info": msg}
@@ -258,25 +257,18 @@ async def update_device(
             update_dict['status'] = update_data.status
         
         if not update_dict:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="没有提供要更新的字段"
-            )
-        
-        updated_device = update_device_info(normalized_mac, **update_dict)
-        return updated_device
-    except HTTPException:
-        raise
-    except ValueError as e:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(e)
-        )
+            return {"status": "success", "info": f"未修改任何内容"}
+            
+        status, msg = update_device_info(normalized_mac, **update_dict)
+        if status:
+            return {"status": "failed", "error_info": f"{error_info}"}
+        else:
+            return {"status": "failed", "error_info": msg}
     except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"更新设备信息失败: {str(e)}"
-        )
+
+        error_info = traceback.format_exc()
+        print(error_info)        
+        return {"status": "failed", "error_info": f"{error_info}"}
 
 @app.patch("/api/devices/{mac_address}/status", response_model=DeviceResponse)
 async def update_device_status_api(

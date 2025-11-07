@@ -318,7 +318,7 @@ def update_device_info(mac_address, device_name=None, device_type=None, location
         # 只能修改非ID和非MAC地址的字段
         if device_name:
             device.device_name = device_name.strip()
-            if _is_device_name_exists(device_name):
+            if _is_device_name_exists(device_name, exclude_mac=mac_address):
                 raise ValueError(f"设备名称 '{device_name}' 已存在")
         if device_type:
             device.device_type = device_type.strip()
@@ -331,9 +331,10 @@ def update_device_info(mac_address, device_name=None, device_type=None, location
         
         session.commit()
         print(f"设备 {mac_address} 信息更新成功")
-        return device.to_dict()  # 返回更新后的设备信息
+        return True, ""
     except Exception as e:
         session.rollback()
-        raise e
+        error_info = traceback.format_exc()
+        return False, str(error_info)
     finally:
         session.close()
