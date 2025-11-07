@@ -732,16 +732,27 @@
                 method: 'PUT',
                 contentType: 'application/json',
                 data: JSON.stringify(formData),
-                success: function(device) {
-                    $('#editDeviceModal').modal('hide');
-                    showMessage('成功', '设备更新成功', 'success');
-                    loadDevices();
-                    loadDeviceStats();
+                success: function(response) {
+                    // 修改这里：根据后端返回的数据结构判断
+                    if (response.status === 'success') {
+                        $('#editDeviceModal').modal('hide');
+                        showMessage('成功', response.info || '设备更新成功', 'success');
+                        loadDevices();
+                        loadDeviceStats();
+                    } else {
+                        // 处理业务逻辑错误
+                        showMessage('错误', response.error_info || '更新失败', 'error');
+                    }
                 },
                 error: function(xhr, status, error) {
                     let errorMsg = '更新设备失败';
-                    if (xhr.responseJSON && xhr.responseJSON.detail) {
-                        errorMsg = xhr.responseJSON.detail;
+                    // 适配后端的错误返回格式
+                    if (xhr.responseJSON) {
+                        if (xhr.responseJSON.detail) {
+                            errorMsg = xhr.responseJSON.detail;
+                        } else if (xhr.responseJSON.error_info) {
+                            errorMsg = xhr.responseJSON.error_info;
+                        }
                     }
                     showMessage('错误', errorMsg, 'error');
                 },

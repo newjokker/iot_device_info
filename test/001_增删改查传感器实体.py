@@ -25,21 +25,43 @@ def test_update_device_info(mac):
     update_device_info(mac, device_type="新的类型， 这就是新的，哈哈")
     get_device_by_mac(mac, print=True)
 
-
 # 删除一个设备
 def test_delete_device_info(mac):
     delete_device(mac)
+
+# 统计数据的类型
+def test():
+    
+    devices = get_all_devices()
+    # print(devices)
+    status_count = {
+        "active": 0,
+        "inactive": 0,
+        "maintenance": 0,
+        "total": len(devices)
+    }
+    
+    for device in devices:
+        status_value = device['status']
+        if status_value in status_count:
+            status_count[status_value] += 1
+
+    print(status_count)
 
 
 if __name__ == "__main__":
     
     mac = "00:11:12:33:44:41"
+    
+    # delete_device(mac)
 
-    # test_add_device_info(mac)
+    test_add_device_info(mac)
 
     # test_get_device_info(mac)
 
     # test_update_device_info(mac)
 
-    test_delete_device_info(mac)
+    # test_delete_device_info(mac)
+
+    test()
 

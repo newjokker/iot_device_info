@@ -39,7 +39,7 @@ class DeviceCreateRequest(BaseModel):
     location: Optional[str] = Field(None, description="安装位置")
     description: Optional[str] = Field(None, description="设备描述")
     install_date: Optional[datetime.datetime] = Field(None, description="安装日期")
-    status: str = Field(..., description="设备状态")
+    status: DeviceStatus = Field(..., description="设备状态")
 
     @validator('mac_address')
     def validate_mac_address(cls, v):
@@ -47,15 +47,6 @@ class DeviceCreateRequest(BaseModel):
         if not re.match(r'^([0-9A-Fa-f]{2}[:-]){5}([0-9A-Fa-f]{2})$', v):
             raise ValueError('MAC地址格式不正确，应为 00:1A:2B:3C:4D:5E 格式')
         return v.upper()
-
-    @validator('status')
-    def validate_status(cls, v):
-        """验证状态值"""
-        valid_statuses = ['active', 'inactive', 'maintenance']
-        if v not in valid_statuses:
-            raise ValueError(f'状态必须是以下值之一: {", ".join(valid_statuses)}')
-        return v
-
 
 
 # 添加全局异常处理来捕获验证错误
@@ -83,8 +74,7 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
         status_code=422,
         content={
             "status": "failed", 
-            "error_info": "数据验证失败",
-            "validation_errors": error_details
+            "error_info":  f"数据验证失败:{error_details}",
         }
     )
 
@@ -245,7 +235,7 @@ async def create_device(device_data: DeviceCreateRequest):
         
         return {"status": "failed", "error_info": f"{error_info}"}
 
-@app.put("/api/devices/{mac_address}", response_model=DeviceResponse)
+@app.put("/api/devices/{mac_address}")
 async def update_device(
     mac_address: str = Path(..., description="设备MAC地址"),
     update_data: DeviceUpdateRequest = ...
@@ -290,13 +280,11 @@ async def update_device(
             
         status, msg = update_device_info(normalized_mac, **update_dict)
         if status:
-            return {"status": "failed", "error_info": f"{error_info}"}
+            return {"status": "success", "info": f"修改成功"}
         else:
             return {"status": "failed", "error_info": msg}
     except Exception as e:
-
         error_info = traceback.format_exc()
-        print(error_info)        
         return {"status": "failed", "error_info": f"{error_info}"}
 
 @app.patch("/api/devices/{mac_address}/status", response_model=DeviceResponse)
