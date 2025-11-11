@@ -7,3 +7,7 @@
 
 * 
 
+### 启动服务
+
+./start_server.sh
+
