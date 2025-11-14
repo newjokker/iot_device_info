@@ -58,6 +58,12 @@ def report_state(client, is_on=True, retain=True):
 
 if __name__ == "__main__":
     
+    # TODO: 查看 command 是不是收到新的消息，是的话按照 command 的内容去切换继电器状态，然后改变 report_state 上报状态
+    
+    # TODO: 继电器是否在线要定期上报一次，防止 MQTT broker 重启后丢失在线状态，上报时间间隔为 5min 
+    
+    
+    
     broker = "8.153.160.138"
     config_topic = "homeassistant/switch/txkj_jokker_desktop_relay/config"
     
@@ -66,10 +72,10 @@ if __name__ == "__main__":
     client.connect(broker, 1883, 60)
 
     # 只需执行一次，创建 Home Assistant 自动发现
-    # add_switch(client, config_topic)
+    add_switch(client, config_topic)
 
     # 上报继电器在线
-    # update_availability(client)
+    update_availability(client)
 
     # 上报继电器是开还是关
     report_state(client, is_on=True)
